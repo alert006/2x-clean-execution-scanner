@@ -54,12 +54,10 @@ if scan_button:
                 df = df.dropna()
             
             # Calculate indicators
-            df_ind = supertrend(df, atr_period=int(atr_period), multiplier=float(atr_mult))
-            signal, sl = generate_signal(df_ind, ema_fast=int(ema_fast), ema_slow=int(ema_slow))
+            df_ind = df            signal, sl = generate_signal(df_ind, ema_fast=int(ema_fast), ema_slow=int(ema_slow))
             
             last_close = df_ind["Close"].iloc[-1]
-            risk_pts = abs(last_close - sl) if sl == sl else None  # NaN check
-            
+                        df_ind = df
             rows.append({
                 "Symbol": sym,
                 "Last Close": round(float(last_close), 2),
