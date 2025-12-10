@@ -61,12 +61,10 @@ def generate_signal(df, ema_fast=9, ema_slow=21):
     sl = np.nan
 
     # Long signal: Supertrend flips up, price above EMA
-    if last["ST_UpTrend"] and last["Close"] > last["EMA_Fast"] and not prev["ST_UpTrend"]:
+        if last["ST_UpTrend"] and last["Close"] > last["EMA_Fast"] and not prev["ST_UpTrend"]:
         signal = "BUY"
         sl = last["ST_Lower"]
     # Short signal: Supertrend flips down, price below EMA
-    elif (not last["ST_UpTrend"]) and last["Close"] < last["EMA_Fast"] and prev["ST_UpTrend"]:
-        signal = "SELL"
         sl = last["ST_Upper"]
 
     return signal, sl
