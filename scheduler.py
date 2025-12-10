@@ -2,6 +2,7 @@
 import os
 import json
 from datetime import datetime
+from pytz import timezone
 import yfinance as yf
 import gspread
 from google.oauth2.service_account import Credentials
@@ -94,6 +95,16 @@ def scan_symbols():
     symbols_to_scan = [
         "^NSEBANK",
         "^NSEI",
+            # Check if current time is within market hours (IST: 9:15 AM - 3:30 PM)
+    ist = timezone('Asia/Kolkata')
+    now = datetime.now(ist)
+    market_open = ist.localize(datetime(now.year, now.month, now.day, 9, 15))
+    market_close = ist.localize(datetime(now.year, now.month, now.day, 15, 30))
+    
+    # Only scan during market hours
+    if not (market_open <= now <= market_close):
+        print(f"Market closed. Current time: {now.strftime('%H:%M:%S IST')}. Scanning resumes at 9:15 AM IST")
+        return
         "HDFCBANK.NS",
         "ICICIBANK.NS",
         "BAJAJFINSV.NS",
