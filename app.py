@@ -2,8 +2,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-from indicators import generate_signal, supertrend, ema
-
+from indicators import generate_signal
 st.set_page_config(page_title="2X Clean Execution Scanner", layout="wide")
 
 st.title("2X Clean Execution (EMA + Supertrend, ATR Exit) Scanner")
