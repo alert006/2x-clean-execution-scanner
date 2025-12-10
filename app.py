@@ -55,6 +55,7 @@ if scan_button:
             # Calculate indicators
             df_ind = df
             signal, sl = generate_signal(df_ind, ema_fast=int(ema_fast), ema_slow=int(ema_slow))            last_close = df_ind["Close"].iloc[-1]
+                        rows.append({
                 "Symbol": sym,
                 "Last Close": round(float(last_close), 2),
                 "Signal": signal,
