@@ -50,11 +50,8 @@ if scan_button:
             status_text.text(f"Processing {sym}...")
             
             # Download data
-            df = yf.download(sym, period="30d", interval=timeframe, progress=False, show_errors=False)
-            
-            if df.empty or len(df) < 2:
-                continue
-            
+            df = yf.download(sym, period="30d", interval=timeframe, progress=False)            
+            if df.empty or len(dprogress=False)
             df = df.dropna()
             
             # Calculate indicators
