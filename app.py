@@ -3,120 +3,105 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 from indicators import generate_signal
-st.set_page_config(page_title="2X Clean Execution Scanner", layout="wide")
+from datetime import datetime
+from pytz import timezone
 
+st.set_page_config(page_title="2X Clean Execution Scanner", layout="wide")
 st.title("2X Clean Execution (EMA + Supertrend, ATR Exit) Scanner")
 st.markdown("Real-time trading signals for NIFTY, BANKNIFTY, and stock indices")
 
 # Sidebar configuration
 with st.sidebar:
     st.header("Configuration")
-    
     symbols_input = st.text_area(
         "Symbols (comma separated)",
-value="^NSEBANK.NS,^NSEI.NS,HDFCBANK.NS,ICICIBANK.NS",    )
+        value="^NSEBANK.NS,^NSEI.NS,HDFCBANK.NS,ICICIBANK.NS",
+    )
     timeframe = st.selectbox("Timeframe", ["5m", "15m", "30m", "60m", "1d"], index=1)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        ema_fast = st.number_input("Fast EMA", 1, 100, 9)
-    with col2:
-        ema_slow = st.number_input("Slow EMA", 1, 200, 21)
-    
-    col3, col4 = st.columns(2)
-    with col3:
-        atr_period = st.number_input("ATR Period", 1, 100, 10)
-    with col4:
-        atr_mult = st.number_input("ST Multiplier", 1.0, 10.0, 3.0, step=0.5)
-    
-    scan_button = st.button("🔍 Scan for Signals", use_container_width=True)
+    ema_fast = st.number_input("Fast EMA", 1, 100, 9)
+    ema_slow = st.number_input("Slow EMA", 1, 200, 21)
+    atr_period = st.number_input("ATR Period", 1, 100, 10)
+    atr_mult = st.number_input("Supertrend Multiplier", 1.0, 10.0, 3.0)
 
-# Main scanning logic
-if scan_button:
-    st.info("Scanning symbols for trading signals...")
-    
-    rows = []
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    
-    symbols = [s.strip() for s in symbols_input.split(",") if s.strip()]
-    
-    for idx, sym in enumerate(symbols):
-        try:
-            status_text.text(f"Processing {sym}...")
-            
-            # Download data
-            df = yf.download(sym, period="30d", interval=timeframe, progress=False)            
-            if df.empty or len(df) < 2:
-                df = df.dropna()
-            
-            # Calculate indicators
-            df_ind = df
-            signal, sl = generate_signal(df_ind, ema_fast=int(ema_fast), ema_slow=int(ema_slow))            last_close = df_ind["Close"].iloc[-1]
-                        rows.append({
-                "Symbol": sym,
-                "Last Close": round(float(last_close), 2),
-                "Signal": signal,
-                "SL": round(float(sl), 2) if sl == sl else "N/A",
-                "Risk (pts)": round(float(risk_pts), 2) if risk_pts is not None else "N/A",
-                "Risk %": round((risk_pts / last_close * 100), 2) if risk_pts is not None else "N/A"
-            })
-        
-        except Exception as e:
-            st.warning(f"⚠️ Error processing {sym}: {str(e)[:50]}")
-            continue
-        
-        progress_bar.progress((idx + 1) / len(symbols))
-    
-    status_text.empty()
-    progress_bar.empty()
-    
-    # Display results
-    if rows:
-        df_results = pd.DataFrame(rows)
-        
-        # Color code signals
-        st.subheader(f"📊 Scan Results ({len(rows)} symbols processed)")
-        
-        # Separate by signal type
-        buy_signals = df_results[df_results["Signal"] == "BUY"]
-        sell_signals = df_results[df_results["Signal"] == "SELL"]
-        no_signals = df_results[df_results["Signal"] == "NONE"]
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("BUY Signals", len(buy_signals), delta=None)
-        with col2:
-            st.metric("SELL Signals", len(sell_signals), delta=None)
-        with col3:
-            st.metric("No Signal", len(no_signals), delta=None)
-        
-        # Display Buy signals
-        if not buy_signals.empty:
-            st.success("🟢 BUY Signals")
-            st.dataframe(buy_signals, use_container_width=True, hide_index=True)
-        
-        # Display Sell signals
-        if not sell_signals.empty:
-            st.error("🔴 SELL Signals")
-            st.dataframe(sell_signals, use_container_width=True, hide_index=True)
-        
-        # Display No signals
-        if not no_signals.empty:
-            with st.expander("⚪ No Signals (click to expand)"):
-                st.dataframe(no_signals, use_container_width=True, hide_index=True)
-    
+# Check market hours
+ist = timezone('Asia/Kolkata')
+now = datetime.now(ist)
+market_open_time = ist.localize(datetime(now.year, now.month, now.day, 9, 15))
+market_close_time = ist.localize(datetime(now.year, now.month, now.day, 15, 30))
+
+if market_open_time <= now <= market_close_time:
+    market_status = "🟢 **MARKET OPEN** (9:15 AM - 3:30 PM IST)"
+    is_market_open = True
+else:
+    market_status = "🔴 **MARKET CLOSED** (Next opening: 9:15 AM IST)"
+    is_market_open = False
+
+st.info(market_status)
+
+if st.button("Scan for Signals", disabled=not is_market_open):
+    if not is_market_open:
+        st.warning("⏰ Scanner only runs during market hours (9:15 AM - 3:30 PM IST)")
     else:
-        st.warning("No data / signals for given symbols and timeframe.")
+        rows = []
+        for sym in [s.strip() for s in symbols_input.split(",") if s.strip()]:
+            try:
+                with st.spinner(f"Scanning {sym}..."):
+                    df = yf.download(sym, period="30d", interval=timeframe, progress=False)
+                    if df.empty or len(df) < 2:
+                        continue
+                    
+                    df = df.dropna()
+                    signal, sl = generate_signal(df, ema_fast=int(ema_fast), ema_slow=int(ema_slow))
+                    
+                    if signal != "NONE":
+                        last_close = df["Close"].iloc[-1]
+                        risk_pts = abs(last_close - sl) if not pd.isna(sl) else 0
+                        
+                        rows.append({
+                            "Symbol": sym,
+                            "Signal": signal,
+                            "Entry": round(float(last_close), 2),
+                            "SL": round(float(sl), 2) if not pd.isna(sl) else "N/A",
+                            "Risk (pts)": round(float(risk_pts), 2),
+                            "Time": datetime.now(ist).strftime("%H:%M:%S IST")
+                        })
+            except Exception as e:
+                st.warning(f"Error scanning {sym}: {str(e)}")
+        
+        if rows:
+            df_results = pd.DataFrame(rows)
+            st.success(f"✅ Found {len(rows)} signal(s)!")
+            st.dataframe(df_results, use_container_width=True)
+            
+            # Display trade details
+            st.subheader("Trade Details")
+            for idx, row in enumerate(rows, 1):
+                with st.expander(f"{idx}. {row['Signal']} - {row['Symbol']}"):
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Entry", f"{row['Entry']:.2f}")
+                    with col2:
+                        st.metric("SL", f"{row['SL']}") 
+                    with col3:
+                        st.metric("Risk", f"{row['Risk (pts)']} pts")
+        else:
+            st.info("📊 No signals found in the current market scan.")
 
-# Footer
 st.markdown("---")
+st.markdown("**📌 How It Works:**")
 st.markdown("""
-**Disclaimer:** This scanner is for educational purposes. Always perform your own analysis before trading.
+- **EMA Cross**: Fast EMA (9) crosses Slow EMA (21)
+- **Supertrend**: Confirms trend direction with ATR-based bands
+- **Entry**: When both EMA and Supertrend align
+- **SL**: ATR-based stop loss level
+- **Market Hours**: 9:15 AM - 3:30 PM IST (India Stock Exchange)
+""")
 
-**Strategy:** 2X Clean Execution (EMA + Supertrend, ATR Exit)
-- **EMA Fast:** Confirms trend direction
-- **EMA Slow:** Identifies overall trend
-- **Supertrend:** Entry/Exit signals with ATR-based stops
-- **Risk Management:** ATR-based stop loss for each trade
+st.markdown("**🔧 Setup Required:**")
+st.markdown("""
+1. Copy `.env.example` to `.env`
+2. Add Twilio WhatsApp credentials
+3. Add Google Sheets API credentials
+4. Run `python scheduler.py` for 5-min auto-scanning
+5. Get WhatsApp alerts for every signal
 """)
