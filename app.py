@@ -51,8 +51,8 @@ if scan_button:
             
             # Download data
             df = yf.download(sym, period="30d", interval=timeframe, progress=False)            
-            if df.empty or len(dprogress=False)
-            df = df.dropna()
+            if df.empty or len(df) < 2:
+                df = df.dropna()
             
             # Calculate indicators
             df_ind = supertrend(df, atr_period=int(atr_period), multiplier=float(atr_mult))
