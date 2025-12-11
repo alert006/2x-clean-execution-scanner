@@ -75,7 +75,7 @@ def format_signal_message(signal_data: dict) -> str:
 🔔 Signal: {signal}
 ⏰ Time: {time_str}
 
-💰 Price: {price}
+💰 Entry Price: {price}
 📈 EMA(30): {ema}
 📉 Supertrend: {supertrend}
 
