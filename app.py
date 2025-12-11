@@ -4,6 +4,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
 import time
+import pytz
 from indicators import generate_signal
 
 # Page configuration
@@ -45,10 +46,12 @@ with st.sidebar:
     st.markdown("**Market Hours:** 9:15 AM - 3:30 PM IST (India Stock Exchange)")
 
 # Display market status
+# Get current time in IST
+ist_tz = pytz.timezone('Asia/Kolkata')
+current_time_ist = datetime.now(ist_tz).time()
 market_open_time = datetime.strptime("09:15", "%H:%M").time()
 market_close_time = datetime.strptime("15:30", "%H:%M").time()
-current_time = datetime.now().time()
-is_market_open = market_open_time <= current_time <= market_close_time
+is_market_open = market_open_time <= current_time_ist <= market_close_time
 
 if is_market_open:
     st.success("✓ MARKET OPEN (9:15 AM - 3:30 PM IST)")
