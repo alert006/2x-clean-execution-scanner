@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import time
 import pytz
 from indicators import generate_signal
+from whatsapp_sender import send_whatsapp_signal, send_test_signal
 
 # Page configuration
 st.set_page_config(page_title="2X Clean Execution Scanner", layout="wide")
@@ -44,6 +45,24 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("**Market Hours:** 9:15 AM - 3:30 PM IST (India Stock Exchange)")
+
+     st.markdown("---")
+ st.subheader("WhatsApp Notifications")
+
+ whatsapp_number = st.text_input("WhatsApp Number", placeholder="+919876543210", key="whatsapp_num")
+ 
+ col_whatsapp = st.columns([1, 1])
+ with col_whatsapp[0]:
+  if st.button("Send Test Signal", key="test_whatsapp"):
+   if whatsapp_number:
+    with st.spinner("Sending WhatsApp message..."):
+     success = send_test_signal(whatsapp_number)
+     if success:
+      st.success("WhatsApp message sent!")
+     else:
+      st.error("Failed to send. Check Twilio credentials.")
+   else:
+    st.warning("Please enter your WhatsApp number first")
 
 # Display market status
 # Get current time in IST
