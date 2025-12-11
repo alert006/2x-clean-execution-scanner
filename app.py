@@ -2,154 +2,162 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+from datetime import datetime, timedelta
+import time
 from indicators import generate_signal
-from datetime import datetime
-from pytz import timezone
 
+# Page configuration
 st.set_page_config(page_title="2X Clean Execution Scanner", layout="wide")
+
 st.title("2X Clean Execution (EMA + Supertrend, ATR Exit) Scanner")
-st.markdown("Real-time trading signals for NIFTY 50 stocks")
+st.markdown("**Real-time trading signals for NIFTY 50 stocks**")
+
+# Stock lists dictionary with all Nifty 50 stocks
+stock_lists = {
+    "Nifty 50 All": "ADANIENT.NS,ADANIPORTS.NS,APOLLOHOSP.NS,ASIANPAINT.NS,AXISBANK.NS,BAJAJ-AUTO.NS,BAJAJISTAND.NS,BAJAJFINSV.NS,BAJFINANCE.NS,BEL.NS,BPCL.NS,BRITANNIA.NS,CIPLA.NS,COALINDIA.NS,DRREDDY.NS,EICHERMOT.NS,GAIL.NS,GRASIM.NS,HCLTECH.NS,HDFC.NS,HDFCBANK.NS,HDFCLIFE.NS,HEROMOTOCO.NS,HINDALCO.NS,HINDUNILVR.NS,HKPPOLYFILN.NS,ICICIBANK.NS,IGSTN.NS,INDIGO.NS,INFY.NS,ITC.NS,JSWSTEEL.NS,KOTAKBANK.NS,LT.NS,LTIM.NS,MARUTI.NS,NTPC.NS,ONGC.NS,POWERGRID.NS,RELIANCE.NS,SBIN.NS,SBILIFE.NS,SUNPHARMA.NS,TATACONSUM.NS,TATAMOTORS.NS,TATAPOWER.NS,TATASTEEL.NS,TCS.NS,TECHM.NS,TITAN.NS,TORNTPHARM.NS,ULTRACEMCO.NS,UPL.NS,WIPRO.NS",
+}
 
 # Sidebar configuration
 with st.sidebar:
     st.header("Configuration")
     
-    # Stock lists dictionary with all Nifty 50 stocks
-    stock_lists = {
-        "Nifty 50 All": "ADANIENT.NS,ADANIPORTS.NS,APOLLOHOSP.NS,ASIANPAINT.NS,AXISBANK.NS,BAJAJ-AUTO.NS,BAJFINANCE.NS,BAJAJFINSV.NS,BEL.NS,BHARTIARTL.NS,CIPLA.NS,COALINDIA.NS,DRREDDY.NS,EICHERMOT.NS,ETERNAL.NS,GRASIM.NS,HCLTECH.NS,HDFCBANK.NS,HDFCLIFE.NS,HEROMOTOCO.NS,HINDALCO.NS,HINDUNILVR.NS,ICICIBANK.NS,INDUSINDBK.NS,INFY.NS,ITC.NS,JSWSTEEL.NS,JIOFIN.NS,KOTAKBANK.NS,LT.NS,M&MFARM.NS,MARUTI.NS,NTPC.NS,NESTLEIND.NS,ONGC.NS,POWERGRID.NS,RELIANCE.NS,SBILIFE.NS,SHRIRAMFIN.NS,SBIN.NS,SUNPHARMA.NS,TCS.NS,TATACONSUM.NS,TATAMOTORS.NS,TATASTEEL.NS,TECHM.NS,TITAN.NS,TRENT.NS,ULTRACEMCO.NS,WIPRO.NS",
-        "Nifty 50 Banks": "AXISBANK.NS,HDFCBANK.NS,ICICIBANK.NS,INDUSINDBK.NS,KOTAKBANK.NS,SBILIFE.NS,SBIN.NS",
-        "Nifty 50 IT": "HCLTECH.NS,INFY.NS,TECHM.NS,TCS.NS,WIPRO.NS",
-        "Nifty 50 Pharma": "CIPLA.NS,DRREDDY.NS,SUNPHARMA.NS",
-        "Nifty 50 Auto": "BAJAJ-AUTO.NS,EICHERMOT.NS,HEROMOTOCO.NS,M&MFARM.NS,MARUTI.NS,TATAMOTORS.NS",
-        "Nifty 50 Metals": "HINDALCO.NS,JSWSTEEL.NS,TATASTEEL.NS",
-        "Nifty 50 Energy": "COALINDIA.NS,NTPC.NS,ONGC.NS,POWERGRID.NS,RELIANCE.NS",
-        "Nifty 50 Finance": "BAJFINANCE.NS,BAJAJFINSV.NS,SHRIRAMFIN.NS",
-        "Custom": "HDFCBANK.NS,ICICIBANK.NS,INFY.NS,TCS.NS"
-    }
+    stock_list_name = st.selectbox("Select Stock List", list(stock_lists.keys()), key="stock_list")
     
-    selected_list = st.selectbox(
-        "📊 Select Stock List",
-        list(stock_lists.keys()),
-        index=0
-    )
-    
-    if selected_list == "Custom":
-        symbols_input = st.text_area(
-            "Custom Symbols (comma separated)",
-            value=stock_lists["Custom"],
-            height=100
-        )
-    else:
-        symbols_input = st.text_area(
-            f"{selected_list} - Click to edit",
-            value=stock_lists[selected_list],
-            height=100
-        )
-    
-    num_symbols = len([s.strip() for s in symbols_input.split(',') if s.strip()])
-    st.success(f"✅ {num_symbols} symbols selected")
-    
-    st.divider()
+    st.markdown("---")
     st.subheader("Trading Parameters")
-    timeframe = st.selectbox("Timeframe", ["5m", "15m", "30m", "60m", "1d"], index=1)
-    ema_fast = st.number_input("Fast EMA", 1, 100, 9)
-    ema_slow = st.number_input("Slow EMA", 1, 200, 21)
-    atr_period = st.number_input("ATR Period", 1, 100, 10)
-    atr_mult = st.number_input("Supertrend Multiplier", 1.0, 10.0, 3.0)
+    
+    # Timeframe selection
+    timeframe = st.selectbox("Timeframe", ["5m", "15m", "1h", "1d"], key="timeframe", index=1)
+    
+    # EMA parameter (single EMA, not two)
+    ema_length = st.number_input("EMA Length", value=30, min_value=1, key="ema_length")
+    
+    # Supertrend parameters
+    supertrend_atr_length = st.number_input("Supertrend ATR Length", value=10, min_value=1, key="st_atr")
+    supertrend_multiplier = st.number_input("Supertrend Multiplier", value=2.0, min_value=0.1, step=0.1, key="st_mult")
+    
+    # ATR Exit parameters
+    atr_length = st.number_input("ATR Length (Exit)", value=14, min_value=1, key="atr_length")
+    sl_multiplier = st.number_input("SL Multiplier (Risk)", value=1.5, min_value=0.1, step=0.1, key="sl_mult")
+    tp_multiplier = st.number_input("TP Multiplier (Reward)", value=3.0, min_value=0.1, step=0.1, key="tp_mult")
+    
+    st.markdown("---")
+    st.markdown("**Market Hours:** 9:15 AM - 3:30 PM IST (India Stock Exchange)")
 
-# Check market hours
-ist = timezone('Asia/Kolkata')
-now = datetime.now(ist)
-market_open_time = ist.localize(datetime(now.year, now.month, now.day, 9, 15))
-market_close_time = ist.localize(datetime(now.year, now.month, now.day, 15, 30))
+# Display market status
+market_open_time = datetime.strptime("09:15", "%H:%M").time()
+market_close_time = datetime.strptime("15:30", "%H:%M").time()
+current_time = datetime.now().time()
+is_market_open = market_open_time <= current_time <= market_close_time
 
-if market_open_time <= now <= market_close_time:
-    market_status = "🟢 **MARKET OPEN** (9:15 AM - 3:30 PM IST)"
-    is_market_open = True
+if is_market_open:
+    st.success("✓ MARKET OPEN (9:15 AM - 3:30 PM IST)")
 else:
-    market_status = "🔴 **MARKET CLOSED** (Next opening: 9:15 AM IST)"
-    is_market_open = False
+    st.warning("✗ MARKET CLOSED - Last data may be outdated")
 
-st.info(market_status)
+# Scan button
+col1, col2 = st.columns([1, 3])
+with col1:
+    scan_button = st.button("🔍 Scan for Signals", key="scan_btn")
 
-if st.button("🔍 Scan for Signals", use_container_width=True, disabled=not is_market_open):
-    if not is_market_open:
-        st.warning("⏰ Scanner only runs during market hours (9:15 AM - 3:30 PM IST)")
-    else:
-        rows = []
-        progress_bar = st.progress(0)
-        status_text = st.empty()
+# Auto-refresh every 5 minutes
+st.markdown("<div style='color: #888; font-size: 12px;'>Auto-refreshing every 5 minutes...</div>", unsafe_allow_html=True)
+
+if scan_button or st.session_state.get('auto_scan', False):
+    st.session_state.auto_scan = True
+    
+    # Get stocks to scan
+    symbols = stock_lists[stock_list_name].split(",")
+    
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    results_data = []
+    
+    for idx, symbol in enumerate(symbols):
+        progress_bar.progress((idx + 1) / len(symbols))
+        status_text.text(f"Scanning {idx + 1}/{len(symbols)}: {symbol}")
         
-        symbols = [s.strip() for s in symbols_input.split(",") if s.strip()]
-        total = len(symbols)
-        
-        for idx, sym in enumerate(symbols):
-            try:
-                status_text.info(f"🔄 Scanning {idx+1}/{total}: {sym}...")
-                df = yf.download(sym, period="30d", interval=timeframe, progress=False)
-                
-                if df.empty or len(df) < 2:
-                    progress_bar.progress((idx + 1) / total)
-                    continue
-                
-                df = df.dropna()
-                signal, sl = generate_signal(df, ema_fast=int(ema_fast), ema_slow=int(ema_slow))
+        try:
+            # Download data based on timeframe
+            if timeframe == "5m":
+                data = yf.download(symbol, period="10d", interval="5m", progress=False)
+            elif timeframe == "15m":
+                data = yf.download(symbol, period="10d", interval="15m", progress=False)
+            elif timeframe == "1h":
+                data = yf.download(symbol, period="30d", interval="1h", progress=False)
+            else:  # 1d
+                data = yf.download(symbol, period="1y", progress=False)
+            
+            if len(data) > max(ema_length, supertrend_atr_length, atr_length):
+                # Generate signal using the new logic with your exact parameters
+                signal, atr, ema, supertrend_val, st_direction = generate_signal(
+                    data,
+                    ema_length=ema_length,
+                    supertrend_atr_length=supertrend_atr_length,
+                    supertrend_multiplier=supertrend_multiplier,
+                    atr_length=atr_length,
+                    sl_multiplier=sl_multiplier,
+                    tp_multiplier=tp_multiplier
+                )
                 
                 if signal != "NONE":
-                    last_close = df["Close"].iloc[-1]
-                    risk_pts = abs(last_close - sl) if not pd.isna(sl) else 0
+                    current_price = data['Close'].iloc[-1]
                     
-                    rows.append({
-                        "Symbol": sym,
+                    # Calculate SL and TP
+                    if signal == "BUY":
+                        sl_price = current_price - (atr * sl_multiplier)
+                        tp_price = current_price + (atr * tp_multiplier)
+                        rr_ratio = (tp_price - current_price) / (current_price - sl_price) if current_price != sl_price else 0
+                    else:  # SELL
+                        sl_price = current_price + (atr * sl_multiplier)
+                        tp_price = current_price - (atr * tp_multiplier)
+                        rr_ratio = (current_price - tp_price) / (sl_price - current_price) if sl_price != current_price else 0
+                    
+                    results_data.append({
+                        "Symbol": symbol,
                         "Signal": signal,
-                        "Entry": round(float(last_close), 2),
-                        "SL": round(float(sl), 2) if not pd.isna(sl) else "N/A",
-                        "Risk (pts)": round(float(risk_pts), 2),
-                        "Time": datetime.now(ist).strftime("%H:%M:%S IST")
+                        "Price": f"₹{current_price:.2f}",
+                        "EMA(30)": f"₹{ema:.2f}",
+                        "Supertrend": f"₹{supertrend_val:.2f}",
+                        "ATR": f"₹{atr:.2f}",
+                        "SL": f"₹{sl_price:.2f}",
+                        "TP": f"₹{tp_price:.2f}",
+                        "R:R": f"{rr_ratio:.2f}",
+                        "Time": datetime.now().strftime("%H:%M:%S")
                     })
-                
-                progress_bar.progress((idx + 1) / total)
-            except Exception as e:
-                progress_bar.progress((idx + 1) / total)
-                continue
         
-        status_text.empty()
-        progress_bar.empty()
+        except Exception as e:
+            status_text.text(f"Error scanning {symbol}: {str(e)}")
+            pass
+    
+    progress_bar.empty()
+    status_text.empty()
+    
+    # Display results
+    st.markdown("---")
+    if results_data:
+        df_results = pd.DataFrame(results_data)
         
-        if rows:
-            df_results = pd.DataFrame(rows)
-            st.success(f"✅ Found {len(rows)} signal(s)!")
-            st.dataframe(df_results, use_container_width=True)
-            
-            # Display trade details
-            st.subheader("📈 Trade Details")
-            for idx, row in enumerate(rows, 1):
-                with st.expander(f"{idx}. {row['Signal']} - {row['Symbol']}"):
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Entry", f"₹{row['Entry']:.2f}")
-                    with col2:
-                        st.metric("SL", f"₹{row['SL']}") 
-                    with col3:
-                        st.metric("Risk", f"{row['Risk (pts)']} pts")
-        else:
-            st.info("📊 No signals found in the current market scan.")
+        # Color code by signal
+        def color_signal(val):
+            if val == "BUY":
+                return "background-color: #0d7d0d; color: white;"
+            elif val == "SELL":
+                return "background-color: #8b0000; color: white;"
+            return ""
+        
+        styled_df = df_results.style.applymap(color_signal, subset=['Signal'])
+        st.dataframe(styled_df, use_container_width=True)
+        
+        st.success(f"✓ Found {len(results_data)} signals")
+    else:
+        st.info("No signals found. Try scanning again.")
 
-st.markdown("---")
-st.markdown("**📌 How It Works:**")
-st.markdown("""
-- **EMA Cross**: Fast EMA (9) crosses Slow EMA (21)
-- **Supertrend**: Confirms trend direction with ATR-based bands
-- **Entry**: When both EMA and Supertrend align
-- **SL**: ATR-based stop loss level
-- **Market Hours**: 9:15 AM - 3:30 PM IST (India Stock Exchange)
-""")
-
-st.markdown("**🔧 Setup Required:**")
-st.markdown("""
-1. Copy `.env.example` to `.env`
-2. Add Twilio WhatsApp credentials
-3. Add Google Sheets API credentials
-4. Run `python scheduler.py` for 5-min auto-scanning
-5. Get WhatsApp alerts + Google Sheets logging
-""")
+# Auto-refresh timer
+if is_market_open:
+    st.markdown("---")
+    st.markdown(f"<div style='text-align: center; color: #888;'>Last scanned: {datetime.now().strftime('%H:%M:%S')} IST</div>", unsafe_allow_html=True)
+    
+    # Use streamlit's reruns for auto-refresh
+    time.sleep(300)  # 5 minutes
+    st.rerun()
