@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 import time
 import pytz
 from indicators import generate_signal
-from sms_sender import send_sms_signal, send_test_sms
 from telegram_sender import send_telegram_signal_sync, send_test_telegram
 
 # Page configuration
