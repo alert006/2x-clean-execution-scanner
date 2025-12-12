@@ -9,3 +9,4 @@ google-auth-oauthlib>=1.0.0
 pytz>=2021.1
 pandas_ta>=0.3.14b0
 twilio>=8.10.0
+python-telegram-bot>=20.0
