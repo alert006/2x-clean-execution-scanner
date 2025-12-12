@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import time
 import pytz
 from indicators import generate_signal
-from whatsapp_sender import send_whatsapp_signal, send_test_signal
+from sms_sender import send_sms_signal, send_test_sms
 
 # Page configuration
 st.set_page_config(page_title="2X Clean Execution Scanner", layout="wide")
