@@ -46,7 +46,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("**Market Hours:** 9:15 AM - 3:30 PM IST (India Stock Exchange)")
 
-     st.markdown("---")
+st.markdown("---")
  st.subheader("WhatsApp Notifications")
 
  whatsapp_number = st.text_input("WhatsApp Number", placeholder="+919876543210", key="whatsapp_num")
