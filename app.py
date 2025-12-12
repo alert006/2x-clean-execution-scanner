@@ -47,21 +47,19 @@ with st.sidebar:
     st.markdown("**Market Hours:** 9:15 AM - 3:30 PM IST (India Stock Exchange)")
 
 st.markdown("---")
- st.subheader("WhatsApp Notifications")
- whatsapp_number = st.text_input("WhatsApp Number", placeholder="+919876543210", key="whatsapp_num")
- 
- col_whatsapp = st.columns([1, 1])
- with col_whatsapp[0]:
-  if st.button("Send Test Signal", key="test_whatsapp"):
-   if whatsapp_number:
-    with st.spinner("Sending WhatsApp message..."):
-     success = send_test_signal(whatsapp_number)
-     if success:
-      st.success("WhatsApp message sent!")
-     else:
-      st.error("Failed to send. Check Twilio credentials.")
-   else:
-    st.warning("Please enter your WhatsApp number first")
+st.subheader("Telegram Notifications")
+telegram_chat_id = st.text_input("Telegram Chat ID", placeholder="Your chat ID")
+
+if st.button("Send Test Signal", key="test_telegram"):
+    if telegram_chat_id:
+        with st.spinner("Sending Telegram message..."):
+            success = send_test_telegram(telegram_chat_id)
+        if success:
+            st.success("Telegram message sent!")
+        else:
+            st.error("Failed to send. Check Telegram credentials.")
+    else:
+        st.warning("Please enter your Telegram Chat ID first")
 
 # Display market status
 # Get current time in IST
