@@ -48,7 +48,6 @@ with st.sidebar:
 
 st.markdown("---")
  st.subheader("WhatsApp Notifications")
-
  whatsapp_number = st.text_input("WhatsApp Number", placeholder="+919876543210", key="whatsapp_num")
  
  col_whatsapp = st.columns([1, 1])
